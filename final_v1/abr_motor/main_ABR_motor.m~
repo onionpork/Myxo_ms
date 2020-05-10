@@ -1,0 +1,82 @@
+addpath('ode_eqn');
+
+comp_num = 6;
+run('compartment_cnt.m');
+
+mat_path = [pwd '\mat'];
+fig_path = [pwd '\figure'];
+%% parameters
+[motor_params, abr_params] = param_set(comp_num);
+t_phase=30:0.5:54;
+shift_time = [-1 t_phase];
+
+ini_val = zeros(1, comp_num*total_speices);
+ini_val(mglA_start) = 1;
+ini_val(mglB_end) = 1;
+ini_val(romR_end) = 1;
+ini_val(im_start:im_end) = motor_params('motor_amount')/6;
+
+mag = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100];
+dur = [1, 2, 3, 4, 5];
+magdur = combvec(mag, dur);
+pflag = ["kbind", "dragco"];
+contact_state = 0;
+for cc_contact = pflag
+    contact_state = contact_state + 1;
+    
+    for mag_dur_vals = magdur
+        motor_params('shiftmag') = mag_dur_vals(1);
+        motor_params('shiftduration') = mag_dur_vals(2);
+        
+        v_total = cell(1, length(shift_time));
+        zeros_total = cell(1,length(shift_time));
+        shift_arr = zeros(length(shift_time) - 1, 4);
+        idx = 0; 
+        for p = shift_time
+            
+            idx = idx + 1;
+            
+            motor_params('shifttime') = p;
+            
+            options = odeset('Events', @(t, pop) MyxoEvent(t, pop, ...
+                motor_params('dragco'), bmp_start, comp_num));
+            
+            tspan = linspace(0,120,120*60+1);
+            
+            [t,pop,zeros_pos,~,~]=ode45(@(t, pop) ...
+                ABR_motor(t, pop,comp_num, motor_params, abr_params, cc_contact), ...
+                tspan, ini_val, options);
+            
+            v = (sum(pop(:,bmp_start:bmp_end),2) - ...
+                sum(pop(:,bmn_start:bmn_end),2))*motor_params('dragco');
+            v_total{idx} = v; zeros_total{idx} = zeros_pos;
+            file_name = ['cc_contact_', num2str(contact_state) ...
+                '_mag_' num2str(motor_params('shiftmag')) ...
+                '_dur_' num2str(motor_params('shiftduration')) ...
+                '_time_' num2str(motor_params('shifttime')) '.mat'];
+            save(fullfile(mat_path, file_name), 'v', 'pop', 't', 'zeros_pos')
+            
+            if motor_params('shifttime') > 0
+                [phase_start, phase_end, phase_mid, diff_curr] = ...
+                    phaseshift_cal(zeros_total, motor_params('shifttime'), ...
+                    idx, motor_params('shiftduration'));
+                shift_arr(idx-1,:) = ...
+                    [phase_start, phase_end, phase_mid, diff_curr];
+            end
+            
+        end
+        
+        file_name = ['phase_cc_contact_' , num2str(contact_state) ...
+            '_mag_' num2str(motor_params('shiftmag')) ...
+            '_dur_' num2str(motor_params('shiftduration')) '.mat'];
+        save(fullfile(mat_path, file_name), 'shift_arr')  
+        
+        fig_name = ['phase_cc_contact_' , num2str(contact_state) ...
+            '_mag_' num2str(motor_params('shiftmag')) ...
+            '_dur_' num2str(motor_params('shiftduration')) '.fig'];
+        
+        figure 
+        plot(shift_arr())
+        saveas(gcf, fullfile(figure_path, figure_name));
+    end
+end

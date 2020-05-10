@@ -1,0 +1,15 @@
+comp_num = motor_params('comp_num'); 
+diffco = motor_params('diffco');
+diffco_im = motor_params('diffco_im'); 
+diffco_am = motor_params('diffco_am');
+diffco_bm = motor_params('diffco_bm');
+v_am = motor_params('v_am');
+dragco = motor_params('dragco');
+kactive_motor = motor_params('kactive_motor');
+kdeactive_motor = motor_params('kdeactive_motor');
+kbind = motor_params('kbind'); 
+kunbind = motor_params('kunbind');
+kreversal = motor_params('kreversal');
+shifttime = motor_params('shifttime');
+shiftduration = motor_params('shiftduration');
+shiftmag = motor_params('shiftmag');
